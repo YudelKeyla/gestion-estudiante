@@ -441,4 +441,56 @@ document.getElementById('btnExportarEstudiantes').addEventListener('click', () =
 function mostrarModalExportar(texto, titulo) {
     document.getElementById('modalTitulo').textContent = '📤 ' + titulo;
     document.getElementById('modalContenido').value = texto;
-    document.getElementById('modalExportar').style.display = 
+    document.getElementById('modalExportar').style.display = 'flex';
+}
+document.getElementById('btnCerrarModal').addEventListener('click', () => {
+    document.getElementById('modalExportar').style.display = 'none';
+});
+document.getElementById('btnCopiarModal').addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('modalContenido').value);
+    alert('Copiado al portapapeles');
+});
+document.getElementById('btnCompartirModal').addEventListener('click', () => {
+    if (navigator.share) {
+        navigator.share({ text: document.getElementById('modalContenido').value });
+    } else {
+
+alert('Compartir no soportado en este navegador');
+    }
+});
+
+// Inicializar listas al cargar
+actualizarListaGrupos();
+cargarGruposEnSelect('grupoEstudiante');
+actualizarListaEstudiantes();
+```
+
+4. manifest.json
+
+```json
+{
+    "name": "Gestor Académico",
+    "short_name": "Académico",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#1a1a2e",
+    "icons": [
+        { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}
+```
+5. service-worker.js
+
+```javascript
+const CACHE = 'academico-v1';
+const urls = ['./','index.html','style.css','script.js','manifest.json'];
+self.addEventListener('install', e => {
+    e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(urls)));
+});
+self.addEventListener('fetch', e => {
+    e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+});
+```
+
