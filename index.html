@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestor Académico</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <!-- Pantalla de login (PIN opcional) -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <h2>🔐 Ingresar PIN</h2>
+            <input type="password" id="pinInput" maxlength="4" inputmode="numeric" placeholder="****" autofocus>
+            <div class="pin-buttons">
+                <button class="pin-btn" data-value="1">1</button>
+                <button class="pin-btn" data-value="2">2</button>
+                <button class="pin-btn" data-value="3">3</button>
+                <button class="pin-btn" data-value="4">4</button>
+                <button class="pin-btn" data-value="5">5</button>
+                <button class="pin-btn" data-value="6">6</button>
+                <button class="pin-btn" data-value="7">7</button>
+                <button class="pin-btn" data-value="8">8</button>
+                <button class="pin-btn" data-value="9">9</button>
+                <button class="pin-btn" data-value="0">0</button>
+                <button class="pin-btn" data-value="clear">⌫</button>
+            </div>
+            <button class="btn-primary" id="btnIngresar">Ingresar</button>
+            <p id="pinError" style="color: #e94560; margin-top: 10px; display: none;">PIN incorrecto</p>
+            <p style="margin-top: 15px; font-size: 12px; color: #666;">PIN: 1234 (por defecto)</p>
+        </div>
+    </div>
+
+    <!-- Aplicación principal -->
+    <div id="mainApp" class="app" style="display: none;">
+        <div class="header">
+            <h1>🎓 Gestor Académico</h1>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="estudiantes">👥 Estudiantes</button>
+                <button class="tab-btn" data-tab="asistencia">📅 Asistencia</button>
+                <button class="tab-btn" data-tab="evaluaciones">📝 Evaluaciones</button>
+                <button class="tab-btn" data-tab="grupos">🏫 Grupos</button>
+                <button class="tab-btn" data-tab="resumen">📊 Resumen</button>
+                <button class="tab-btn" data-tab="info">ℹ️ Info</button>
+            </div>
+        </div>
+
+        <!-- PESTAÑA ESTUDIANTES -->
+        <div class="tab-content active" id="tab-estudiantes">
+            <div class="form-card">
+                <h2 id="formTitleEstudiante">➕ Agregar Estudiante</h2>
+                <input type="hidden" id="editandoIdEstudiante">
+                <input type="text" id="nombreEstudiante" placeholder="Nombre(s)" autocomplete="off">
+                <input type="text" id="apellidosEstudiante" placeholder="Apellidos" autocomplete="off">
+                <select id="grupoEstudiante">
+                    <option value="">Selecciona un grupo</option>
+                </select>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" id="btnGuardarEstudiante" style="flex:2;">💾 Guardar</button>
+                    <button class="btn-secondary" id="btnCancelarEstudiante" style="flex:1; display:none;">❌ Cancelar</button>
+                </div>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="buscarEstudiante" placeholder="🔍 Buscar estudiante...">
+                <button class="btn-icon" id="btnLimpiarBusquedaEstudiante">✕</button>
+            </div>
+            <div class="list-header">
+                <h2>📋 Lista de Estudiantes (<span id="cantidadEstudiantes">0</span>)</h2>
+                <button class="btn-icon" id="btnExportarEstudiantes" title="Exportar">📤</button>
+            </div>
+            <div class="lista-estudiantes" id="listaEstudiantes">
+                <div class="empty-state">No hay estudiantes registrados</div>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 14px;">
+                <h3>💾 Respaldo de Datos</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" id="btnRespaldar" style="flex:1;">📥 Descargar Respaldo</button>
+                    <button class="btn-secondary" id="btnRestaurar" style="flex:1;">📤 Cargar Respaldo</button>
+                    <input type="file" id="inputRestaurar" accept=".json" style="display:none;">
+                </div>
+            </div>
+        </div>
+
+        <!-- PESTAÑA ASISTENCIA -->
+        <div class="tab-content" id="tab-asistencia">
+            <div class="form-card">
+                <h2>📅 Registrar Asistencia</h2>
+                <select id="grupoAsistencia">
+                    <option value="">Selecciona un grupo</option>
+                </select>
+                <input type="date" id="fechaAsistencia">
+                <div id="listaAsistencia" class="lista-asistencia">
+                    <p>Selecciona grupo y fecha para ver estudiantes.</p>
+                </div>
+                <button class="btn-primary" id="btnGuardarAsistencia">💾 Guardar Asistencia</button>
+            </div>
+        </div>
+
+        <!-- PESTAÑA EVALUACIONES -->
+        <div class="tab-content" id="tab-evaluaciones">
+            <div class="form-card">
+                <h2>📝 Nueva Evaluación</h2>
+                <select id="tipoEvaluacion">
+                    <option value="oral">Oral</option>
+                    <option value="trabajo">Trabajo</option>
+                    <option value="examen">Examen</option>
+                </select>
+                <input type="text" id="descripcionEvaluacion" placeholder="Descripción (ej. Examen Parcial 1)">
+                <input type="date" id="fechaEvaluacion">
+                <select id="grupoEvaluacion">
+                    <option value="">Selecciona un grupo</option>
+                </select>
+                <div id="listaNotas" class="lista-notas">
+                    <p>Selecciona grupo y fecha para asignar notas.</p>
+                </div>
+                <button class="btn-primary" id="btnGuardarEvaluacion">💾 Guardar Evaluación</button>
+            </div>
+            <div class="list-header">
+                <h2>📋 Evaluaciones Realizadas</h2>
+            </div>
+            <div class="lista-evaluaciones" id="listaEvaluaciones">
+                <div class="empty-state">No hay evaluaciones registradas</div>
+            </div>
+        </div>
+
+        <!-- PESTAÑA GRUPOS -->
+        <div class="tab-content" id="tab-grupos">
+            <div class="form-card">
+                <h2>🏫 Administrar Grupos</h2>
+                <input type="text" id="nombreFacultad" placeholder="Facultad (ej. Ingeniería)">
+                <input type="text" id="nombreCarrera" placeholder="Carrera (ej. Informática)">
+                <select id="anioCarrera">
+                    <option value="1ro">1ro</option>
+                    <option value="2do">2do</option>
+                    <option value="3ro">3ro</option>
+                    <option value="4to">4to</option>
+                    <option value="5to">5to</option>
+                </select>
+                <input type="text" id="letraGrupo" placeholder="Grupo (ej. A, B, C1)">
+                <button class="btn-primary" id="btnAgregarGrupo">➕ Agregar Grupo</button>
+            </div>
+            <div class="list-header">
+                <h2>📋 Grupos Existentes</h2>
+                <button class="btn-icon" id="btnLimpiarGrupos">🗑️</button>
+            </div>
+            <div class="lista-grupos" id="listaGrupos">
+                <div class="empty-state">No hay grupos creados</div>
+            </div>
+        </div>
+
+        <!-- PESTAÑA RESUMEN -->
+        <div class="tab-content" id="tab-resumen">
+            <h2>📊 Promedios Generales</h2>
+            <div id="tablaPromedios" class="tabla-promedios">
+                <p>Los promedios se calculan automáticamente con las notas de evaluaciones.</p>
+            </div>
+        </div>
+
+        <!-- PESTAÑA INFO -->
+        <div class="tab-content" id="tab-info">
+            <div class="info-card">
+                <h2>👨‍💻 Desarrollador</h2>
+                <p><strong>Nombre:</strong> Ing. Yudel Noda Cepero</p>
+                <p><strong>Versión:</strong> 1.0</p>
+                <p><strong>Contacto:</strong> +53 52034233, yudelnc@gmail.com</p>
+                <button class="btn-primary" id="btnCambiarPIN" style="background: #e94560;">🔑 Cambiar PIN</button>
+            </div>
+            <div class="info-card">
+                <h2>📖 Manual de Uso</h2>
+                <p>1. Crea facultades, carreras y grupos.<br>2. Agrega estudiantes a un grupo.<br>3. Toma asistencia por grupo y fecha.<br>4. Crea evaluaciones y asigna notas de 1 a 5.<br>5. Los promedios se actualizan automáticamente.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div id="modalExportar" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="modalTitulo">📤 Datos Exportados</h3>
+            <textarea id="modalContenido" readonly></textarea>
+            <div class="modal-buttons">
+                <button id="btnCopiarModal" class="btn-primary">📋 Copiar</button>
+                <button id="btnCompartirModal" class="btn-success">📤 Compartir</button>
+                <button id="btnCerrarModal" class="btn-secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalCambiarPIN" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>🔑 Cambiar PIN</h3>
+            <input type="password" id="pinActual" placeholder="PIN actual" maxlength="4">
+            <input type="password" id="pinNuevo" placeholder="Nuevo PIN" maxlength="4">
+            <input type="password" id="pinConfirmacion" placeholder="Confirmar PIN" maxlength="4">
+            <input type="text" id="pinPista" placeholder="Pista de recuperación (opcional)">
+            <div class="modal-buttons">
+                <button id="btnGuardarPIN" class="btn-primary">💾 Guardar</button>
+                <button id="btnCancelarPIN" class="btn-secondary">Cancelar</button>
+            </div>
+            <p id="mensajePIN" style="color:red;display:none;"></p>
+        </div>
+    </div>
+
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+        });
+    }
+    </script>
+    <script src="script.js"></script>
+</body>
+  </html>
