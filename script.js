@@ -1,465 +1,299 @@
-// ==================== AUTENTICACIÓN ====================
-const PIN_POR_DEFECTO = '1234';
-let pinCorrecto = localStorage.getItem('pin') || PIN_POR_DEFECTO;
-const loginScreen = document.getElementById('loginScreen');
-const mainApp = document.getElementById('mainApp');
-const pinInput = document.getElementById('pinInput');
-const btnIngresar = document.getElementById('btnIngresar');
-const pinError = document.getElementById('pinError');
+// ---- ESTRUCTURA DE DATOS EN LOCALSTORAGE ----
+// grupos: [{ id, nombre (carrera), año, facultad, alumnos: [] }]
+// alumnos: dentro de grupo.alumnos -> { id, nombre, apellido, evaluaciones: [{nombre, nota}] }
+// asistencia: { [grupoId]: { [fecha]: [idAlumno1, idAlumno2...] } }
 
-function verificarSesion() {
-    if (sessionStorage.getItem('autenticado') === 'true') {
-        mostrarApp();
-    }
-}
-function mostrarApp() {
-    loginScreen.style.display = 'none';
-    mainApp.style.display = 'block';
-    sessionStorage.setItem('autenticado', 'true');
-}
-btnIngresar.addEventListener('click', () => {
-    if (pinInput.value === pinCorrecto) {
-        mostrarApp();
-        pinError.style.display = 'none';
-        pinInput.value = '';
-    } else {
-        pinError.style.display = 'block';
-        pinInput.value = '';
-    }
-});
-// Teclado numérico
-document.querySelectorAll('.pin-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const value = btn.dataset.value;
-        if (value === 'clear') pinInput.value = pinInput.value.slice(0, -1);
-        else if (pinInput.value.length < 4) pinInput.value += value;
-        if (pinInput.value.length === 4) setTimeout(() => btnIngresar.click(), 100);
-    });
-});
-pinInput.addEventListener('input', () => {
-    pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
-});
-verificarSesion();
+const STORAGE_GRUPOS = 'unigrupos';
+const STORAGE_ASISTENCIA = 'uniasistencia';
 
-// ==================== DATOS ====================
-let facultades = [];
-let carreras = [];
-let anios = ['1ro','2do','3ro','4to','5to'];
-let grupos = []; // {id, facultad, carrera, anio, letra}
-let estudiantes = []; // {id, nombre, apellidos, grupoId}
-let asistencias = []; // {fecha, grupoId, registros: [{estudianteId, estado}]}
-let evaluaciones = []; // {id, tipo, descripcion, fecha, grupoId, notas: [{estudianteId, nota}]}
-
-function cargarDatos() {
-    const datos = localStorage.getItem('datosAcademicos');
-    if (datos) {
-        const parsed = JSON.parse(datos);
-        facultades = parsed.facultades || [];
-        carreras = parsed.carreras || [];
-        grupos = parsed.grupos || [];
-        estudiantes = parsed.estudiantes || [];
-        asistencias = parsed.asistencias || [];
-        evaluaciones = parsed.evaluaciones || [];
-    }
+function cargarGrupos() {
+  return JSON.parse(localStorage.getItem(STORAGE_GRUPOS) || '[]');
 }
-function guardarDatos() {
-    localStorage.setItem('datosAcademicos', JSON.stringify({
-        facultades, carreras, grupos, estudiantes, asistencias, evaluaciones
-    }));
+function guardarGrupos(grupos) {
+  localStorage.setItem(STORAGE_GRUPOS, JSON.stringify(grupos));
 }
-cargarDatos();
+function cargarAsistencia() {
+  return JSON.parse(localStorage.getItem(STORAGE_ASISTENCIA) || '{}');
+}
+function guardarAsistencia(asistencia) {
+  localStorage.setItem(STORAGE_ASISTENCIA, JSON.stringify(asistencia));
+}
 
-// ==================== NAVEGACIÓN ====================
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
-        if (btn.dataset.tab === 'estudiantes') actualizarListaEstudiantes();
-        else if (btn.dataset.tab === 'asistencia') { cargarGruposEnSelect('grupoAsistencia'); actualizarAsistencia(); }
-        else if (btn.dataset.tab === 'evaluaciones') { cargarGruposEnSelect('grupoEvaluacion'); actualizarListaEvaluaciones(); }
-        else if (btn.dataset.tab === 'grupos') actualizarListaGrupos();
-        else if (btn.dataset.tab === 'resumen') actualizarResumen();
-    });
+let grupos = cargarGrupos();
+let asistenciaData = cargarAsistencia();
+let grupoActualId = null;
+let alumnoEditandoId = null; // para evaluaciones
+
+// Elementos DOM
+const vistaGrupos = document.getElementById('vista-grupos');
+const vistaGrupo = document.getElementById('vista-grupo');
+const listaGrupos = document.getElementById('lista-grupos');
+const tituloGrupo = document.getElementById('titulo-grupo');
+const listaAlumnos = document.getElementById('lista-alumnos');
+const asistenciaLista = document.getElementById('asistencia-lista');
+const fechaAsistencia = document.getElementById('fecha-asistencia');
+const modalAlumno = document.getElementById('modal-alumno');
+const modalEval = document.getElementById('modal-evaluaciones');
+const inputNombre = document.getElementById('input-nombre');
+const inputApellido = document.getElementById('input-apellido');
+const inputNombreEval = document.getElementById('input-nombre-eval');
+const inputNota = document.getElementById('input-nota');
+const nombreAlumnoEval = document.getElementById('nombre-alumno-eval');
+const listaEvaluaciones = document.getElementById('lista-evaluaciones');
+const promedioActual = document.getElementById('promedio-actual');
+
+// Fecha por defecto: hoy
+fechaAsistencia.value = new Date().toISOString().split('T')[0];
+
+// Navegación
+document.getElementById('btn-volver-grupos').addEventListener('click', () => {
+  vistaGrupo.classList.remove('activa');
+  vistaGrupos.classList.add('activa');
+  grupoActualId = null;
 });
 
-// ==================== GRUPOS ====================
-document.getElementById('btnAgregarGrupo').addEventListener('click', () => {
-    const facultad = document.getElementById('nombreFacultad').value.trim();
-    const carrera = document.getElementById('nombreCarrera').value.trim();
-    const anio = document.getElementById('anioCarrera').value;
-    const letra = document.getElementById('letraGrupo').value.trim();
-    if (!facultad || !carrera || !letra) return alert('Completa todos los campos');
-    if (!facultades.includes(facultad)) facultades.push(facultad);
-    if (!carreras.includes(carrera)) carreras.push(carrera);
-    const existe = grupos.find(g => g.facultad === facultad && g.carrera === carrera && g.anio === anio && g.letra === letra);
-    if (existe) return alert('El grupo ya existe');
-    grupos.push({ id: Date.now(), facultad, carrera, anio, letra });
-    guardarDatos();
-    actualizarListaGrupos();
-    document.getElementById('nombreFacultad').value = '';
-    document.getElementById('nombreCarrera').value = '';
-    document.getElementById('letraGrupo').value = '';
+// Pestañas
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+    tab.classList.add('activo');
+    const panel = tab.dataset.tab;
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
+    document.getElementById(`panel-${panel}`).classList.add('activo');
+    if (panel === 'asistencia') cargarAsistenciaPanel();
+  });
 });
 
-function actualizarListaGrupos() {
-    const div = document.getElementById('listaGrupos');
-    if (grupos.length === 0) {
-        div.innerHTML = '<div class="empty-state">No hay grupos creados</div>';
-        return;
-    }
-    div.innerHTML = grupos.map(g => `
-        <div class="grupo-item">
-            <div>${g.facultad} - ${g.carrera} (${g.anio}) Grupo ${g.letra}</div>
-            <button onclick="eliminarGrupo(${g.id})">🗑️</button>
-        </div>
-    `).join('');
+// ---- FUNCIONES GRUPOS ----
+function renderGrupos() {
+  listaGrupos.innerHTML = grupos.map(g => `
+    <div class="tarjeta">
+      <div class="info">
+        <strong>${g.nombre}</strong><br>
+        <small>Año ${g.año} · ${g.facultad} · ${g.alumnos.length} alumnos</small>
+      </div>
+      <div class="acciones-tarjeta">
+        <button onclick="eliminarGrupo('${g.id}')" title="Eliminar">🗑️</button>
+        <button onclick="abrirGrupo('${g.id}')">Abrir</button>
+      </div>
+    </div>
+  `).join('');
 }
+
+function abrirGrupo(id) {
+  const grupo = grupos.find(g => g.id === id);
+  if (!grupo) return;
+  grupoActualId = id;
+  tituloGrupo.textContent = `${grupo.nombre} - ${grupo.facultad} (Año ${grupo.año})`;
+  vistaGrupos.classList.remove('activa');
+  vistaGrupo.classList.add('activa');
+  // Reset tabs
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+  document.querySelector('.tab[data-tab="alumnos"]').classList.add('activo');
+  document.getElementById('panel-alumnos').classList.add('activo');
+  document.getElementById('panel-asistencia').classList.remove('activo');
+  renderAlumnos();
+}
+
 function eliminarGrupo(id) {
-    if (!confirm('¿Eliminar grupo?')) return;
-    grupos = grupos.filter(g => g.id !== id);
-    guardarDatos();
-    actualizarListaGrupos();
-}
-document.getElementById('btnLimpiarGrupos').addEventListener('click', () => {
-    if (confirm('¿Eliminar todos los grupos?')) {
-        grupos = [];
-        guardarDatos();
-        actualizarListaGrupos();
-    }
-});
-
-function cargarGruposEnSelect(selectId) {
-    const select = document.getElementById(selectId);
-    select.innerHTML = '<option value="">Selecciona un grupo</option>';
-    grupos.forEach(g => {
-        const option = document.createElement('option');
-        option.value = g.id;
-        option.textContent = `${g.facultad} - ${g.carrera} (${g.anio}) Grupo ${g.letra}`;
-        select.appendChild(option);
-    });
+  if (!confirm('¿Eliminar grupo y todos sus datos?')) return;
+  grupos = grupos.filter(g => g.id !== id);
+  delete asistenciaData[id];
+  guardarGrupos(grupos);
+  guardarAsistencia(asistenciaData);
+  renderGrupos();
+  if (grupoActualId === id) {
+    vistaGrupo.classList.remove('activa');
+    vistaGrupos.classList.add('activa');
+  }
 }
 
-// ==================== ESTUDIANTES ====================
-document.getElementById('btnGuardarEstudiante').addEventListener('click', () => {
-    const nombre = document.getElementById('nombreEstudiante').value.trim();
-    const apellidos = document.getElementById('apellidosEstudiante').value.trim();
-    const grupoId = parseInt(document.getElementById('grupoEstudiante').value);
-    const editandoId = document.getElementById('editandoIdEstudiante').value;
-    if (!nombre || !apellidos || !grupoId) return alert('Completa todos los campos');
-    if (editandoId) {
-        const idx = estudiantes.findIndex(e => e.id == editandoId);
-        if (idx !== -1) {
-            estudiantes[idx].nombre = nombre;
-            estudiantes[idx].apellidos = apellidos;
-            estudiantes[idx].grupoId = grupoId;
-        }
-        document.getElementById('editandoIdEstudiante').value = '';
-        document.getElementById('btnCancelarEstudiante').style.display = 'none';
-        document.getElementById('formTitleEstudiante').textContent = '➕ Agregar Estudiante';
-    } else {
-        estudiantes.push({ id: Date.now(), nombre, apellidos, grupoId });
-    }
-    guardarDatos();
-    actualizarListaEstudiantes();
-    document.getElementById('nombreEstudiante').value = '';
-    document.getElementById('apellidosEstudiante').value = '';
-});
-function editarEstudiante(id) {
-    const est = estudiantes.find(e => e.id === id);
-    if (!est) return;
-    document.getElementById('nombreEstudiante').value = est.nombre;
-    document.getElementById('apellidosEstudiante').value = est.apellidos;
-    document.getElementById('grupoEstudiante').value = est.grupoId;
-    document.getElementById('editandoIdEstudiante').value = est.id;
-    document.getElementById('formTitleEstudiante').textContent = '✏️ Editar Estudiante';
-    document.getElementById('btnCancelarEstudiante').style.display = 'inline-block';
-}
-document.getElementById('btnCancelarEstudiante').addEventListener('click', () => {
-    document.getElementById('editandoIdEstudiante').value = '';
-    document.getElementById('nombreEstudiante').value = '';
-    document.getElementById('apellidosEstudiante').value = '';
-    document.getElementById('grupoEstudiante').value = '';
-    document.getElementById('formTitleEstudiante').textContent = '➕ Agregar Estudiante';
-    document.getElementById('btnCancelarEstudiante').style.display = 'none';
-});
-function actualizarListaEstudiantes() {
-    cargarGruposEnSelect('grupoEstudiante');
-    const div = document.getElementById('listaEstudiantes');
-    const termino = document.getElementById('buscarEstudiante')?.value?.toLowerCase() || '';
-    let filtrados = estudiantes;
-    if (termino) {
-        filtrados = estudiantes.filter(e => (e.nombre + ' ' + e.apellidos).toLowerCase().includes(termino));
-    }
-    document.getElementById('cantidadEstudiantes').textContent = estudiantes.length;
-    if (filtrados.length === 0) {
-        div.innerHTML = '<div class="empty-state">No se encontraron estudiantes</div>';
-        return;
-    }
-    div.innerHTML = filtrados.map(e => {
-        const grupo = grupos.find(g => g.id === e.grupoId);
-        const nombreGrupo = grupo ? `${grupo.facultad} - ${grupo.carrera} (${grupo.anio}) Grupo ${grupo.letra}` : 'Sin grupo';
-        return `<div class="estudiante-item">
-            <div><strong>${e.nombre} ${e.apellidos}</strong><br><small>${nombreGrupo}</small></div>
-            <div>
-                <button onclick="editarEstudiante(${e.id})">✏️</button>
-                <button onclick="eliminarEstudiante(${e.id})">🗑️</button>
-            </div>
-        </div>`;
-    }).join('');
-}
-function eliminarEstudiante(id) {
-    if (!confirm('¿Eliminar estudiante?')) return;
-    estudiantes = estudiantes.filter(e => e.id !== id);
-    guardarDatos();
-    actualizarListaEstudiantes();
-}
-document.getElementById('buscarEstudiante').addEventListener('input', actualizarListaEstudiantes);
-document.getElementById('btnLimpiarBusquedaEstudiante').addEventListener('click', () => {
-    document.getElementById('buscarEstudiante').value = '';
-    actualizarListaEstudiantes();
+document.getElementById('btn-nuevo-grupo').addEventListener('click', () => {
+  const nombre = prompt('Nombre del grupo (ej: Ing. Informática):');
+  if (!nombre) return;
+  const año = prompt('Año (1,2,3...):');
+  if (!año) return;
+  const facultad = prompt('Facultad:');
+  if (!facultad) return;
+  grupos.push({
+    id: crypto.randomUUID(),
+    nombre,
+    año: parseInt(año),
+    facultad,
+    alumnos: []
+  });
+  guardarGrupos(grupos);
+  renderGrupos();
 });
 
-// ==================== ASISTENCIA ====================
-document.getElementById('grupoAsistencia').addEventListener('change', actualizarAsistencia);
-document.getElementById('fechaAsistencia').addEventListener('change', actualizarAsistencia);
-
-function actualizarAsistencia() {
-    const grupoId = parseInt(document.getElementById('grupoAsistencia').value);
-    const fecha = document.getElementById('fechaAsistencia').value;
-    const div = document.getElementById('listaAsistencia');
-    if (!grupoId || !fecha) {
-        div.innerHTML = '<p>Selecciona grupo y fecha.</p>';
-        return;
-    }
-    const ests = estudiantes.filter(e => e.grupoId === grupoId);
-    if (ests.length === 0) {
-        div.innerHTML = '<p>No hay estudiantes en este grupo.</p>';
-        return;
-    }
-    let registro = asistencias.find(a => a.grupoId === grupoId && a.fecha === fecha);
-    if (!registro) {
-        registro = { fecha, grupoId, registros: ests.map(e => ({ estudianteId: e.id, estado: 'presente' })) };
-        asistencias.push(registro);
-        guardarDatos();
-    }
-    div.innerHTML = ests.map(e => {
-        const estadoActual = registro.registros.find(r => r.estudianteId === e.id)?.estado || 'presente';
-        return `<div class="estudiante-item">
-            <span>${e.nombre} ${e.apellidos}</span>
-            <select onchange="cambiarEstado(${e.id}, this.value, ${grupoId}, '${fecha}')">
-                <option value="presente" ${estadoActual === 'presente' ? 'selected' : ''}>Presente</option>
-                <option value="ausente" ${estadoActual === 'ausente' ? 'selected' : ''}>Ausente</option>
-                <option value="tarde" ${estadoActual === 'tarde' ? 'selected' : ''}>Tarde</option>
-            </select>
-        </div>`;
-    }).join('');
-}
-function cambiarEstado(estudianteId, estado, grupoId, fecha) {
-    const registro = asistencias.find(a => a.grupoId === grupoId && a.fecha === fecha);
-    if (registro) {
-        const reg = registro.registros.find(r => r.estudianteId === estudianteId);
-        if (reg) reg.estado = estado;
-        guardarDatos();
-    }
-}
-document.getElementById('btnGuardarAsistencia').addEventListener('click', () => {
-    alert('Asistencia guardada automáticamente al cambiar estados.');
-});
-
-// ==================== EVALUACIONES ====================
-document.getElementById('grupoEvaluacion').addEventListener('change', cargarNotasEvaluacion);
-function cargarNotasEvaluacion() {
-    const grupoId = parseInt(document.getElementById('grupoEvaluacion').value);
-    const div = document.getElementById('listaNotas');
-    if (!grupoId) {
-        div.innerHTML = '<p>Selecciona un grupo.</p>';
-        return;
-    }
-    const ests = estudiantes.filter(e => e.grupoId === grupoId);
-    if (ests.length === 0) {
-        div.innerHTML = '<p>No hay estudiantes en este grupo.</p>';
-        return;
-    }
-    div.innerHTML = ests.map(e => `
-        <div class="estudiante-item">
-            <span>${e.nombre} ${e.apellidos}</span>
-            <input type="number" id="nota_${e.id}" min="1" max="5" step="0.1" placeholder="Nota" style="width:80px;">
+// ---- FUNCIONES ALUMNOS ----
+function renderAlumnos() {
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  if (!grupo) return;
+  listaAlumnos.innerHTML = grupo.alumnos.map(al => {
+    const promedio = calcularPromedio(al.evaluaciones);
+    return `
+      <div class="tarjeta">
+        <div class="info">
+          ${al.nombre} ${al.apellido} 
+          <span style="float:right; font-weight:bold;">${promedio}</span>
         </div>
-    `).join('');
+        <div class="acciones-tarjeta">
+          <button onclick="editarAlumno('${al.id}')">✏️</button>
+          <button onclick="abrirEvaluaciones('${al.id}')">📊 Evaluar</button>
+          <button onclick="eliminarAlumno('${al.id}')">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
 }
-document.getElementById('btnGuardarEvaluacion').addEventListener('click', () => {
-    const tipo = document.getElementById('tipoEvaluacion').value;
-    const descripcion = document.getElementById('descripcionEvaluacion').value.trim();
-    const fecha = document.getElementById('fechaEvaluacion').value;
-    const grupoId = parseInt(document.getElementById('grupoEvaluacion').value);
-    if (!descripcion || !fecha || !grupoId) return alert('Completa todos los campos');
-    const notas = [];
-    estudiantes.filter(e => e.grupoId === grupoId).forEach(e => {
-        const notaInput = document.getElementById(`nota_${e.id}`);
-        if (notaInput && notaInput.value) {
-            const nota = parseFloat(notaInput.value);
-            if (nota >= 1 && nota <= 5) notas.push({ estudianteId: e.id, nota });
-        }
+
+function calcularPromedio(evaluaciones) {
+  if (!evaluaciones || evaluaciones.length === 0) return '-';
+  const suma = evaluaciones.reduce((acc, e) => acc + e.nota, 0);
+  return (suma / evaluaciones.length).toFixed(2);
+}
+
+document.getElementById('btn-agregar-alumno').addEventListener('click', () => {
+  alumnoEditandoId = null;
+  inputNombre.value = '';
+  inputApellido.value = '';
+  document.getElementById('modal-titulo').textContent = 'Nuevo alumno';
+  modalAlumno.classList.remove('oculto');
+});
+
+document.getElementById('btn-guardar-alumno').addEventListener('click', () => {
+  const nombre = inputNombre.value.trim();
+  const apellido = inputApellido.value.trim();
+  if (!nombre || !apellido) return alert('Completa los campos');
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  if (!grupo) return;
+  if (alumnoEditandoId) {
+    const al = grupo.alumnos.find(a => a.id === alumnoEditandoId);
+    if (al) { al.nombre = nombre; al.apellido = apellido; }
+  } else {
+    grupo.alumnos.push({
+      id: crypto.randomUUID(),
+      nombre,
+      apellido,
+      evaluaciones: []
     });
-    if (notas.length === 0) return alert('Asigna al menos una nota');
-    evaluaciones.push({ id: Date.now(), tipo, descripcion, fecha, grupoId, notas });
-    guardarDatos();
-    actualizarListaEvaluaciones();
-    alert('Evaluación guardada correctamente.');
-    document.getElementById('descripcionEvaluacion').value = '';
-    document.getElementById('fechaEvaluacion').value = '';
-    cargarNotasEvaluacion();
+  }
+  guardarGrupos(grupos);
+  modalAlumno.classList.add('oculto');
+  renderAlumnos();
 });
-function actualizarListaEvaluaciones() {
-    const div = document.getElementById('listaEvaluaciones');
-    if (evaluaciones.length === 0) {
-        div.innerHTML = '<div class="empty-state">No hay evaluaciones</div>';
-        return;
-    }
-    div.innerHTML = evaluaciones.map(ev => {
-        const grupo = grupos.find(g => g.id === ev.grupoId);
-        const nombreGrupo = grupo ? `${grupo.facultad} - ${grupo.carrera} (${grupo.anio}) Grupo ${grupo.letra}` : '?';
-        return `<div class="evaluacion-item">
-            <div><strong>${ev.tipo.toUpperCase()}</strong>: ${ev.descripcion}<br><small>${fecha} - ${nombreGrupo}</small></div>
-            <button onclick="eliminarEvaluacion(${ev.id})">🗑️</button>
-        </div>`;
-    }).join('');
-}
-function eliminarEvaluacion(id) {
-    if (!confirm('¿Eliminar evaluación?')) return;
-    evaluaciones = evaluaciones.filter(ev => ev.id !== id);
-    guardarDatos();
-    actualizarListaEvaluaciones();
+
+document.getElementById('btn-cancelar-modal').addEventListener('click', () => {
+  modalAlumno.classList.add('oculto');
+});
+
+function editarAlumno(id) {
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  const al = grupo?.alumnos.find(a => a.id === id);
+  if (!al) return;
+  alumnoEditandoId = id;
+  inputNombre.value = al.nombre;
+  inputApellido.value = al.apellido;
+  document.getElementById('modal-titulo').textContent = 'Editar alumno';
+  modalAlumno.classList.remove('oculto');
 }
 
-// ==================== RESUMEN (PROMEDIOS) ====================
-function actualizarResumen() {
-    const div = document.getElementById('tablaPromedios');
-    if (estudiantes.length === 0) {
-        div.innerHTML = '<p>No hay estudiantes para mostrar promedios.</p>';
-        return;
-    }
-    let html = '<table><tr><th>Estudiante</th><th>Grupo</th><th>Promedio</th></tr>';
-    estudiantes.forEach(e => {
-        let suma = 0, cantidad = 0;
-        evaluaciones.forEach(ev => {
-            const nota = ev.notas.find(n => n.estudianteId === e.id);
-            if (nota) { suma += nota.nota; cantidad++; }
-        });
-        const promedio = cantidad > 0 ? (suma / cantidad).toFixed(2) : 'N/A';
-        const grupo = grupos.find(g => g.id === e.grupoId);
-        const nombreGrupo = grupo ? `${grupo.facultad} - ${grupo.carrera} (${grupo.anio}) Grupo ${grupo.letra}` : 'Sin grupo';
-        html += `<tr><td>${e.nombre} ${e.apellidos}</td><td>${nombreGrupo}</td><td>${promedio}</td></tr>`;
-    });
-    html += '</table>';
-    div.innerHTML = html;
+function eliminarAlumno(id) {
+  if (!confirm('¿Eliminar alumno?')) return;
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  grupo.alumnos = grupo.alumnos.filter(a => a.id !== id);
+  guardarGrupos(grupos);
+  renderAlumnos();
 }
 
-// ==================== RESPALDO Y RESTAURACIÓN ====================
-document.getElementById('btnRespaldar').addEventListener('click', () => {
-    const datos = { facultades, carreras, grupos, estudiantes, asistencias, evaluaciones };
-    const blob = new Blob([JSON.stringify(datos)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `respaldo_academico_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-});
-document.getElementById('btnRestaurar').addEventListener('click', () => {
-    document.getElementById('inputRestaurar').click();
-});
-document.getElementById('inputRestaurar').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        try {
-            const datos = JSON.parse(ev.target.result);
-            facultades = datos.facultades || [];
-            carreras = datos.carreras || [];
-            grupos = datos.grupos || [];
-            estudiantes = datos.estudiantes || [];
-            asistencias = datos.asistencias || [];
-            evaluaciones = datos.evaluaciones || [];
-            guardarDatos();
-            alert('Datos restaurados correctamente.');
-            location.reload();
-        } catch (ex) {
-            alert('Archivo no válido.');
-        }
-    };
-    reader.readAsText(file);
-});
-
-// ==================== CAMBIO DE PIN ====================
-document.getElementById('btnCambiarPIN').addEventListener('click', () => {
-    document.getElementById('modalCambiarPIN').style.display = 'flex';
-});
-document.getElementById('btnCancelarPIN').addEventListener('click', () => {
-    document.getElementById('modalCambiarPIN').style.display = 'none';
-});
-document.getElementById('btnGuardarPIN').addEventListener('click', () => {
-    const actual = document.getElementById('pinActual').value;
-    const nuevo = document.getElementById('pinNuevo').value;
-    const confirmacion = document.getElementById('pinConfirmacion').value;
-    const pista = document.getElementById('pinPista').value;
-    const mensaje = document.getElementById('mensajePIN');
-    if (actual !== pinCorrecto) {
-        mensaje.textContent = 'PIN actual incorrecto';
-        mensaje.style.display = 'block';
-        return;
-    }
-    if (nuevo.length !== 4 || !/^\d{4}$/.test(nuevo)) {
-        mensaje.textContent = 'El PIN debe ser de 4 dígitos';
-        mensaje.style.display = 'block';
-        return;
-    }
-    if (nuevo !== confirmacion) {
-        mensaje.textContent = 'Los PINs no coinciden';
-        mensaje.style.display = 'block';
-        return;
-    }
-    localStorage.setItem('pin', nuevo);
-    if (pista) localStorage.setItem('pin_hint', pista);
-    pinCorrecto = nuevo;
-    document.getElementById('modalCambiarPIN').style.display = 'none';
-    alert('PIN cambiado exitosamente');
-});
-
-// ==================== EXPORTACIÓN GENÉRICA ====================
-document.getElementById('btnExportarEstudiantes').addEventListener('click', () => {
-    let texto = 'Nombre,Apellidos,Grupo\n';
-    estudiantes.forEach(e => {
-        const grupo = grupos.find(g => g.id === e.grupoId);
-        texto += `${e.nombre},${e.apellidos},${grupo ? grupo.facultad + ' ' + grupo.carrera : ''}\n`;
-    });
-    mostrarModalExportar(texto, 'Estudiantes');
-});
-function mostrarModalExportar(texto, titulo) {
-    document.getElementById('modalTitulo').textContent = '📤 ' + titulo;
-    document.getElementById('modalContenido').value = texto;
-    document.getElementById('modalExportar').style.display = 'flex';
+// ---- ASISTENCIA ----
+function cargarAsistenciaPanel() {
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  if (!grupo) return;
+  const fecha = fechaAsistencia.value;
+  const presentes = asistenciaData[grupoActualId]?.[fecha] || [];
+  asistenciaLista.innerHTML = grupo.alumnos.map(al => `
+    <div class="asistencia-item">
+      <label>
+        <input type="checkbox" value="${al.id}" ${presentes.includes(al.id) ? 'checked' : ''}>
+        ${al.nombre} ${al.apellido}
+      </label>
+    </div>
+  `).join('');
 }
-document.getElementById('btnCerrarModal').addEventListener('click', () => {
-    document.getElementById('modalExportar').style.display = 'none';
-});
-document.getElementById('btnCopiarModal').addEventListener('click', () => {
-    navigator.clipboard.writeText(document.getElementById('modalContenido').value);
-    alert('Copiado al portapapeles');
-});
-document.getElementById('btnCompartirModal').addEventListener('click', () => {
-    if (navigator.share) {
-        navigator.share({ text: document.getElementById('modalContenido').value });
-    } else {
 
-alert('Compartir no soportado en este navegador');
-    }
+document.getElementById('btn-guardar-asistencia').addEventListener('click', () => {
+  const fecha = fechaAsistencia.value;
+  if (!fecha) return alert('Selecciona una fecha');
+  const checks = asistenciaLista.querySelectorAll('input[type=checkbox]');
+  const presentes = Array.from(checks).filter(c => c.checked).map(c => c.value);
+  if (!asistenciaData[grupoActualId]) asistenciaData[grupoActualId] = {};
+  asistenciaData[grupoActualId][fecha] = presentes;
+  guardarAsistencia(asistenciaData);
+  alert('Asistencia guardada');
+  cargarAsistenciaPanel();
 });
 
-// Inicializar listas al cargar
-actualizarListaGrupos();
-cargarGruposEnSelect('grupoEstudiante');
-actualizarListaEstudiantes();
+fechaAsistencia.addEventListener('change', cargarAsistenciaPanel);
+
+// ---- EVALUACIONES ----
+function abrirEvaluaciones(alumnoId) {
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  const alumno = grupo?.alumnos.find(a => a.id === alumnoId);
+  if (!alumno) return;
+  alumnoEditandoId = alumnoId; // para agregar evaluación
+  nombreAlumnoEval.textContent = alumno.nombre + ' ' + alumno.apellido;
+  renderEvaluaciones(alumno);
+  modalEval.classList.remove('oculto');
+}
+
+function renderEvaluaciones(alumno) {
+  listaEvaluaciones.innerHTML = alumno.evaluaciones.map((e, index) => `
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+      <span>${e.nombre}</span>
+      <span><strong>${e.nota.toFixed(1)}</strong></span>
+      <button onclick="eliminarEvaluacion('${alumno.id}', ${index})" style="padding:2px 8px; background:#fee2e2;">✕</button>
+    </div>
+  `).join('');
+  promedioActual.textContent = calcularPromedio(alumno.evaluaciones);
+}
+
+document.getElementById('btn-agregar-evaluacion').addEventListener('click', () => {
+  const nombre = inputNombreEval.value.trim();
+  const nota = parseFloat(inputNota.value);
+  if (!nombre || isNaN(nota) || nota < 0 || nota > 5) {
+    return alert('Nombre de evaluación válido y nota entre 0 y 5');
+  }
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  const alumno = grupo?.alumnos.find(a => a.id === alumnoEditandoId);
+  if (!alumno) return;
+  alumno.evaluaciones.push({ nombre, nota });
+  guardarGrupos(grupos);
+  inputNombreEval.value = '';
+  inputNota.value = '';
+  renderEvaluaciones(alumno);
+  renderAlumnos(); // actualizar promedio en lista
+});
+
+function eliminarEvaluacion(alumnoId, index) {
+  const grupo = grupos.find(g => g.id === grupoActualId);
+  const alumno = grupo?.alumnos.find(a => a.id === alumnoId);
+  if (!alumno) return;
+  alumno.evaluaciones.splice(index, 1);
+  guardarGrupos(grupos);
+  renderEvaluaciones(alumno);
+  renderAlumnos();
+}
+
+document.getElementById('btn-cerrar-evaluaciones').addEventListener('click', () => {
+  modalEval.classList.add('oculto');
+});
+
+// Cerrar modales con clic fuera (opcional)
+window.addEventListener('click', (e) => {
+  if (e.target === modalAlumno) modalAlumno.classList.add('oculto');
+  if (e.target === modalEval) modalEval.classList.add('oculto');
+});
+
+// Inicializar
+renderGrupos();
