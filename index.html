@@ -9,81 +9,85 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>📋 UniControl</h1>
-    <p>Asistencia y Evaluaciones</p>
-  </header>
+  <div class="contenedor-app">
+    <header>
+      <h1>📋 UniControl</h1>
+      <p>Asistencia y Evaluaciones</p>
+    </header>
 
-  <main id="app">
-    <!-- Pantalla de inicio con selección de grupo -->
-    <section id="vista-grupos" class="vista activa">
-      <div class="acciones">
-        <button id="btn-nuevo-grupo" class="primario">➕ Nuevo grupo</button>
-      </div>
-      <div id="lista-grupos" class="lista"></div>
-    </section>
-
-    <!-- Vista de un grupo específico (alumnos, asistencia, evaluaciones) -->
-    <section id="vista-grupo" class="vista">
-      <div class="barra-superior">
-        <button id="btn-volver-grupos" class="icono">← Volver</button>
-        <h2 id="titulo-grupo"></h2>
-      </div>
-
-      <div class="tabs">
-        <button class="tab activo" data-tab="alumnos">👥 Alumnos</button>
-        <button class="tab" data-tab="asistencia">📅 Asistencia</button>
-      </div>
-
-      <!-- Panel Alumnos -->
-      <div id="panel-alumnos" class="panel activo">
-        <div class="acciones">
-          <button id="btn-agregar-alumno" class="primario">➕ Añadir alumno</button>
+    <main id="app">
+      <!-- Pantalla de inicio con selección de grupo -->
+      <section id="vista-grupos" class="vista activa">
+        <div class="acciones-centradas">
+          <button id="btn-nuevo-grupo" class="primario">➕ Nuevo grupo</button>
         </div>
-        <div id="lista-alumnos" class="lista"></div>
-      </div>
+        <div id="lista-grupos" class="lista"></div>
+      </section>
 
-      <!-- Panel Asistencia -->
-      <div id="panel-asistencia" class="panel">
-        <div class="selector-fecha">
-          <label for="fecha-asistencia">Fecha clase:</label>
-          <input type="date" id="fecha-asistencia">
+      <!-- Vista de un grupo específico (alumnos, asistencia, evaluaciones) -->
+      <section id="vista-grupo" class="vista">
+        <div class="barra-superior">
+          <button id="btn-volver-grupos" class="icono">← Volver</button>
+          <h2 id="titulo-grupo"></h2>
         </div>
-        <div id="asistencia-lista" class="lista"></div>
-        <button id="btn-guardar-asistencia" class="primario">💾 Guardar asistencia</button>
-      </div>
-    </section>
 
-    <!-- Modal: Añadir/Editar alumno -->
-    <div id="modal-alumno" class="modal oculto">
-      <div class="modal-contenido">
-        <h3 id="modal-titulo">Nuevo alumno</h3>
-        <input type="text" id="input-nombre" placeholder="Nombre(s)" required>
-        <input type="text" id="input-apellido" placeholder="Apellido(s)" required>
-        <div class="modal-botones">
-          <button id="btn-cancelar-modal">Cancelar</button>
-          <button id="btn-guardar-alumno" class="primario">Guardar</button>
+        <div class="tabs">
+          <button class="tab activo" data-tab="alumnos">👥 Alumnos</button>
+          <button class="tab" data-tab="asistencia">📅 Asistencia</button>
         </div>
-      </div>
-    </div>
 
-    <!-- Modal: Evaluaciones de un alumno -->
-    <div id="modal-evaluaciones" class="modal oculto">
-      <div class="modal-contenido">
-        <h3>Evaluaciones de <span id="nombre-alumno-eval"></span></h3>
-        <div class="evaluaciones-lista" id="lista-evaluaciones"></div>
-        <div class="nueva-evaluacion">
-          <input type="text" id="input-nombre-eval" placeholder="Ej: Examen oral 1">
-          <input type="number" id="input-nota" min="0" max="5" step="0.1" placeholder="Nota (0-5)">
-          <button id="btn-agregar-evaluacion" class="primario pequeño">➕</button>
+        <!-- Panel Alumnos -->
+        <div id="panel-alumnos" class="panel activo">
+          <div class="acciones-centradas">
+            <button id="btn-agregar-alumno" class="primario">➕ Añadir alumno</button>
+          </div>
+          <div id="lista-alumnos" class="lista"></div>
         </div>
-        <p>Promedio actual: <strong id="promedio-actual">-</strong></p>
-        <div class="modal-botones">
-          <button id="btn-cerrar-evaluaciones">Cerrar</button>
+
+        <!-- Panel Asistencia -->
+        <div id="panel-asistencia" class="panel">
+          <div class="selector-fecha">
+            <label for="fecha-asistencia">Fecha clase:</label>
+            <input type="date" id="fecha-asistencia">
+          </div>
+          <div id="asistencia-lista" class="lista"></div>
+          <div class="acciones-centradas">
+            <button id="btn-guardar-asistencia" class="primario">💾 Guardar asistencia</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Modal: Añadir/Editar alumno -->
+      <div id="modal-alumno" class="modal oculto">
+        <div class="modal-contenido">
+          <h3 id="modal-titulo">Nuevo alumno</h3>
+          <input type="text" id="input-nombre" placeholder="Nombre(s)" required>
+          <input type="text" id="input-apellido" placeholder="Apellido(s)" required>
+          <div class="modal-botones">
+            <button id="btn-cancelar-modal">Cancelar</button>
+            <button id="btn-guardar-alumno" class="primario">Guardar</button>
+          </div>
         </div>
       </div>
-    </div>
-  </main>
+
+      <!-- Modal: Evaluaciones de un alumno -->
+      <div id="modal-evaluaciones" class="modal oculto">
+        <div class="modal-contenido">
+          <h3>Evaluaciones de <span id="nombre-alumno-eval"></span></h3>
+          <div class="evaluaciones-lista" id="lista-evaluaciones"></div>
+          <div class="nueva-evaluacion">
+            <input type="text" id="input-nombre-eval" placeholder="Ej: Examen oral 1">
+            <input type="number" id="input-nota" min="0" max="5" step="0.1" placeholder="Nota (0-5)">
+            <button id="btn-agregar-evaluacion" class="primario pequeño">➕</button>
+          </div>
+          <p>Promedio actual: <strong id="promedio-actual">-</strong></p>
+          <div class="modal-botones">
+            <button id="btn-cerrar-evaluaciones">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
   <script src="script.js"></script>
 </body>
