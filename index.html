@@ -16,7 +16,7 @@
     </header>
 
     <main id="app">
-      <!-- Pantalla de inicio con selección de grupo -->
+      <!-- Vista de Grupos -->
       <section id="vista-grupos" class="vista activa">
         <div class="acciones-centradas">
           <button id="btn-nuevo-grupo" class="primario">➕ Nuevo grupo</button>
@@ -24,7 +24,7 @@
         <div id="lista-grupos" class="lista"></div>
       </section>
 
-      <!-- Vista de un grupo específico (alumnos, asistencia, evaluaciones) -->
+      <!-- Vista interna de un Grupo -->
       <section id="vista-grupo" class="vista">
         <div class="barra-superior">
           <button id="btn-volver-grupos" class="icono">← Volver</button>
@@ -34,6 +34,7 @@
         <div class="tabs">
           <button class="tab activo" data-tab="alumnos">👥 Alumnos</button>
           <button class="tab" data-tab="asistencia">📅 Asistencia</button>
+          <button class="tab" data-tab="reporte">📊 Reporte</button>
         </div>
 
         <!-- Panel Alumnos -->
@@ -55,6 +56,11 @@
             <button id="btn-guardar-asistencia" class="primario">💾 Guardar asistencia</button>
           </div>
         </div>
+
+        <!-- Panel Reporte -->
+        <div id="panel-reporte" class="panel">
+          <div id="reporte-contenido"></div>
+        </div>
       </section>
 
       <!-- Modal: Añadir/Editar alumno -->
@@ -70,6 +76,20 @@
         </div>
       </div>
 
+      <!-- Modal: Editar grupo -->
+      <div id="modal-grupo" class="modal oculto">
+        <div class="modal-contenido">
+          <h3>Editar grupo</h3>
+          <input type="text" id="input-editar-nombre" placeholder="Nombre del grupo" required>
+          <input type="number" id="input-editar-anio" placeholder="Año" min="1" required>
+          <input type="text" id="input-editar-facultad" placeholder="Facultad" required>
+          <div class="modal-botones">
+            <button id="btn-cancelar-editar-grupo">Cancelar</button>
+            <button id="btn-guardar-editar-grupo" class="primario">Guardar</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal: Evaluaciones de un alumno -->
       <div id="modal-evaluaciones" class="modal oculto">
         <div class="modal-contenido">
@@ -77,7 +97,7 @@
           <div class="evaluaciones-lista" id="lista-evaluaciones"></div>
           <div class="nueva-evaluacion">
             <input type="text" id="input-nombre-eval" placeholder="Ej: Examen oral 1">
-            <input type="number" id="input-nota" min="0" max="5" step="0.1" placeholder="Nota (0-5)">
+            <input type="number" id="input-nota" min="2" max="5" step="1" placeholder="Nota (2-5)">
             <button id="btn-agregar-evaluacion" class="primario pequeño">➕</button>
           </div>
           <p>Promedio actual: <strong id="promedio-actual">-</strong></p>
