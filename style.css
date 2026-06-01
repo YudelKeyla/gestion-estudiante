@@ -59,21 +59,10 @@ main {
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
-.vista {
-  display: none;
-}
-
-.vista.activa {
-  display: block;
-}
-
-.panel {
-  display: none;
-}
-
-.panel.activo {
-  display: block;
-}
+.vista { display: none; }
+.vista.activa { display: block; }
+.panel { display: none; }
+.panel.activo { display: block; }
 
 .barra-superior {
   display: flex;
@@ -102,9 +91,7 @@ button {
   transition: background 0.2s;
 }
 
-button:active {
-  opacity: 0.8;
-}
+button:active { opacity: 0.8; }
 
 button.primario {
   background: #1e3a5f;
@@ -139,19 +126,16 @@ button.pequeño {
   border-radius: 12px;
   padding: 12px 14px;
   transition: 0.2s;
+  flex-wrap: wrap;
 }
 
-.tarjeta:hover {
-  background: #eef2f7;
-}
-
-.tarjeta .info {
-  flex: 1;
-}
-
+.tarjeta:hover { background: #eef2f7; }
+.tarjeta .info { flex: 1; min-width: 150px; }
 .tarjeta .acciones-tarjeta {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .tabs {
@@ -214,23 +198,54 @@ input[type="number"] {
   font-size: 0.95rem;
 }
 
+/* Reporte */
+.reporte-alumno {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.reporte-alumno h4 {
+  margin-bottom: 8px;
+  color: #1e3a5f;
+}
+
+.reporte-detalle {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.asistencia-fechas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 5px 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge-presente { background: #c6f6d5; color: #22543d; }
+.badge-ausente { background: #fed7d7; color: #822727; }
+
+/* Modales */
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 100;
 }
-
-.modal.oculto {
-  display: none;
-}
-
+.modal.oculto { display: none; }
 .modal-contenido {
   background: white;
   padding: 20px;
@@ -239,7 +254,6 @@ input[type="number"] {
   max-width: 400px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
-
 .modal-botones {
   display: flex;
   justify-content: flex-end;
@@ -254,15 +268,7 @@ input[type="number"] {
 }
 
 @media (max-width: 400px) {
-  main {
-    padding: 15px;
-  }
-  
-  header {
-    padding: 15px;
-  }
-  
-  header h1 {
-    font-size: 1.4rem;
-  }
+  main { padding: 15px; }
+  header { padding: 15px; }
+  header h1 { font-size: 1.4rem; }
 }
