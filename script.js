@@ -1,19 +1,28 @@
 // ---- ESTRUCTURA DE DATOS EN LOCALSTORAGE ----
-// grupos: [{ id, nombre (carrera), año, facultad, alumnos: [] }]
-// alumnos: dentro de grupo.alumnos -> { id, nombre, apellido, evaluaciones: [{nombre, nota}] }
-// asistencia: { [grupoId]: { [fecha]: [idAlumno1, idAlumno2...] } }
-
 const STORAGE_GRUPOS = 'unigrupos';
 const STORAGE_ASISTENCIA = 'uniasistencia';
 
+// Función para generar IDs únicos compatible con todos los navegadores
+function generarID() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+
 function cargarGrupos() {
-  return JSON.parse(localStorage.getItem(STORAGE_GRUPOS) || '[]');
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_GRUPOS) || '[]');
+  } catch(e) {
+    return [];
+  }
 }
 function guardarGrupos(grupos) {
   localStorage.setItem(STORAGE_GRUPOS, JSON.stringify(grupos));
 }
 function cargarAsistencia() {
-  return JSON.parse(localStorage.getItem(STORAGE_ASISTENCIA) || '{}');
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_ASISTENCIA) || '{}');
+  } catch(e) {
+    return {};
+  }
 }
 function guardarAsistencia(asistencia) {
   localStorage.setItem(STORAGE_ASISTENCIA, JSON.stringify(asistencia));
@@ -22,50 +31,158 @@ function guardarAsistencia(asistencia) {
 let grupos = cargarGrupos();
 let asistenciaData = cargarAsistencia();
 let grupoActualId = null;
-let alumnoEditandoId = null; // para evaluaciones
+let alumnoEditandoId = null;
 
-// Elementos DOM
-const vistaGrupos = document.getElementById('vista-grupos');
-const vistaGrupo = document.getElementById('vista-grupo');
-const listaGrupos = document.getElementById('lista-grupos');
-const tituloGrupo = document.getElementById('titulo-grupo');
-const listaAlumnos = document.getElementById('lista-alumnos');
-const asistenciaLista = document.getElementById('asistencia-lista');
-const fechaAsistencia = document.getElementById('fecha-asistencia');
-const modalAlumno = document.getElementById('modal-alumno');
-const modalEval = document.getElementById('modal-evaluaciones');
-const inputNombre = document.getElementById('input-nombre');
-const inputApellido = document.getElementById('input-apellido');
-const inputNombreEval = document.getElementById('input-nombre-eval');
-const inputNota = document.getElementById('input-nota');
-const nombreAlumnoEval = document.getElementById('nombre-alumno-eval');
-const listaEvaluaciones = document.getElementById('lista-evaluaciones');
-const promedioActual = document.getElementById('promedio-actual');
+// Elementos DOM (se ejecuta después de que cargue el DOM)
+document.addEventListener('DOMContentLoaded', () => {
+  // Referencias a elementos
+  window.vistaGrupos = document.getElementById('vista-grupos');
+  window.vistaGrupo = document.getElementById('vista-grupo');
+  window.listaGrupos = document.getElementById('lista-grupos');
+  window.tituloGrupo = document.getElementById('titulo-grupo');
+  window.listaAlumnos = document.getElementById('lista-alumnos');
+  window.asistenciaLista = document.getElementById('asistencia-lista');
+  window.fechaAsistencia = document.getElementById('fecha-asistencia');
+  window.modalAlumno = document.getElementById('modal-alumno');
+  window.modalEval = document.getElementById('modal-evaluaciones');
+  window.inputNombre = document.getElementById('input-nombre');
+  window.inputApellido = document.getElementById('input-apellido');
+  window.inputNombreEval = document.getElementById('input-nombre-eval');
+  window.inputNota = document.getElementById('input-nota');
+  window.nombreAlumnoEval = document.getElementById('nombre-alumno-eval');
+  window.listaEvaluaciones = document.getElementById('lista-evaluaciones');
+  window.promedioActual = document.getElementById('promedio-actual');
 
-// Fecha por defecto: hoy
-fechaAsistencia.value = new Date().toISOString().split('T')[0];
+  // Fecha por defecto: hoy
+  if (fechaAsistencia) fechaAsistencia.value = new Date().toISOString().split('T')[0];
 
-// Navegación
-document.getElementById('btn-volver-grupos').addEventListener('click', () => {
-  vistaGrupo.classList.remove('activa');
-  vistaGrupos.classList.add('activa');
-  grupoActualId = null;
-});
-
-// Pestañas
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
-    tab.classList.add('activo');
-    const panel = tab.dataset.tab;
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
-    document.getElementById(`panel-${panel}`).classList.add('activo');
-    if (panel === 'asistencia') cargarAsistenciaPanel();
+  // Eventos de navegación
+  document.getElementById('btn-volver-grupos').addEventListener('click', () => {
+    vistaGrupo.classList.remove('activa');
+    vistaGrupos.classList.add('activa');
+    grupoActualId = null;
   });
+
+  // Pestañas
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+      tab.classList.add('activo');
+      const panel = tab.dataset.tab;
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
+      document.getElementById(`panel-${panel}`).classList.add('activo');
+      if (panel === 'asistencia') cargarAsistenciaPanel();
+    });
+  });
+
+  // Botón nuevo grupo
+  document.getElementById('btn-nuevo-grupo').addEventListener('click', () => {
+    const nombre = prompt('Nombre del grupo (ej: Ing. Informática):');
+    if (!nombre) return;
+    const año = prompt('Año (1,2,3...):');
+    if (!año) return;
+    const facultad = prompt('Facultad:');
+    if (!facultad) return;
+    
+    const nuevoGrupo = {
+      id: generarID(),
+      nombre,
+      año: parseInt(año),
+      facultad,
+      alumnos: []
+    };
+    grupos.push(nuevoGrupo);
+    guardarGrupos(grupos);
+    renderGrupos();
+    console.log('Grupo agregado:', nuevoGrupo, 'Total grupos:', grupos.length);
+  });
+
+  // Botón agregar alumno
+  document.getElementById('btn-agregar-alumno').addEventListener('click', () => {
+    alumnoEditandoId = null;
+    inputNombre.value = '';
+    inputApellido.value = '';
+    document.getElementById('modal-titulo').textContent = 'Nuevo alumno';
+    modalAlumno.classList.remove('oculto');
+  });
+
+  // Guardar alumno
+  document.getElementById('btn-guardar-alumno').addEventListener('click', () => {
+    const nombre = inputNombre.value.trim();
+    const apellido = inputApellido.value.trim();
+    if (!nombre || !apellido) return alert('Completa los campos');
+    const grupo = grupos.find(g => g.id === grupoActualId);
+    if (!grupo) return;
+    if (alumnoEditandoId) {
+      const al = grupo.alumnos.find(a => a.id === alumnoEditandoId);
+      if (al) { al.nombre = nombre; al.apellido = apellido; }
+    } else {
+      grupo.alumnos.push({
+        id: generarID(),
+        nombre,
+        apellido,
+        evaluaciones: []
+      });
+    }
+    guardarGrupos(grupos);
+    modalAlumno.classList.add('oculto');
+    renderAlumnos();
+  });
+
+  document.getElementById('btn-cancelar-modal').addEventListener('click', () => {
+    modalAlumno.classList.add('oculto');
+  });
+
+  // Asistencia
+  document.getElementById('btn-guardar-asistencia').addEventListener('click', () => {
+    const fecha = fechaAsistencia.value;
+    if (!fecha) return alert('Selecciona una fecha');
+    const checks = asistenciaLista.querySelectorAll('input[type=checkbox]');
+    const presentes = Array.from(checks).filter(c => c.checked).map(c => c.value);
+    if (!asistenciaData[grupoActualId]) asistenciaData[grupoActualId] = {};
+    asistenciaData[grupoActualId][fecha] = presentes;
+    guardarAsistencia(asistenciaData);
+    alert('Asistencia guardada');
+    cargarAsistenciaPanel();
+  });
+
+  fechaAsistencia.addEventListener('change', cargarAsistenciaPanel);
+
+  // Evaluaciones
+  document.getElementById('btn-agregar-evaluacion').addEventListener('click', () => {
+    const nombre = inputNombreEval.value.trim();
+    const nota = parseFloat(inputNota.value);
+    if (!nombre || isNaN(nota) || nota < 0 || nota > 5) {
+      return alert('Nombre de evaluación válido y nota entre 0 y 5');
+    }
+    const grupo = grupos.find(g => g.id === grupoActualId);
+    const alumno = grupo?.alumnos.find(a => a.id === alumnoEditandoId);
+    if (!alumno) return;
+    alumno.evaluaciones.push({ nombre, nota });
+    guardarGrupos(grupos);
+    inputNombreEval.value = '';
+    inputNota.value = '';
+    renderEvaluaciones(alumno);
+    renderAlumnos();
+  });
+
+  document.getElementById('btn-cerrar-evaluaciones').addEventListener('click', () => {
+    modalEval.classList.add('oculto');
+  });
+
+  // Cerrar modales clic fuera
+  window.addEventListener('click', (e) => {
+    if (e.target === modalAlumno) modalAlumno.classList.add('oculto');
+    if (e.target === modalEval) modalEval.classList.add('oculto');
+  });
+
+  // Render inicial
+  renderGrupos();
 });
 
-// ---- FUNCIONES GRUPOS ----
+// ---- FUNCIONES (fuera del DOMContentLoaded pero accesibles) ----
 function renderGrupos() {
+  if (!listaGrupos) return;
   listaGrupos.innerHTML = grupos.map(g => `
     <div class="tarjeta">
       <div class="info">
@@ -87,7 +204,6 @@ function abrirGrupo(id) {
   tituloGrupo.textContent = `${grupo.nombre} - ${grupo.facultad} (Año ${grupo.año})`;
   vistaGrupos.classList.remove('activa');
   vistaGrupo.classList.add('activa');
-  // Reset tabs
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
   document.querySelector('.tab[data-tab="alumnos"]').classList.add('activo');
   document.getElementById('panel-alumnos').classList.add('activo');
@@ -108,25 +224,6 @@ function eliminarGrupo(id) {
   }
 }
 
-document.getElementById('btn-nuevo-grupo').addEventListener('click', () => {
-  const nombre = prompt('Nombre del grupo (ej: Ing. Informática):');
-  if (!nombre) return;
-  const año = prompt('Año (1,2,3...):');
-  if (!año) return;
-  const facultad = prompt('Facultad:');
-  if (!facultad) return;
-  grupos.push({
-    id: crypto.randomUUID(),
-    nombre,
-    año: parseInt(año),
-    facultad,
-    alumnos: []
-  });
-  guardarGrupos(grupos);
-  renderGrupos();
-});
-
-// ---- FUNCIONES ALUMNOS ----
 function renderAlumnos() {
   const grupo = grupos.find(g => g.id === grupoActualId);
   if (!grupo) return;
@@ -153,40 +250,6 @@ function calcularPromedio(evaluaciones) {
   return (suma / evaluaciones.length).toFixed(2);
 }
 
-document.getElementById('btn-agregar-alumno').addEventListener('click', () => {
-  alumnoEditandoId = null;
-  inputNombre.value = '';
-  inputApellido.value = '';
-  document.getElementById('modal-titulo').textContent = 'Nuevo alumno';
-  modalAlumno.classList.remove('oculto');
-});
-
-document.getElementById('btn-guardar-alumno').addEventListener('click', () => {
-  const nombre = inputNombre.value.trim();
-  const apellido = inputApellido.value.trim();
-  if (!nombre || !apellido) return alert('Completa los campos');
-  const grupo = grupos.find(g => g.id === grupoActualId);
-  if (!grupo) return;
-  if (alumnoEditandoId) {
-    const al = grupo.alumnos.find(a => a.id === alumnoEditandoId);
-    if (al) { al.nombre = nombre; al.apellido = apellido; }
-  } else {
-    grupo.alumnos.push({
-      id: crypto.randomUUID(),
-      nombre,
-      apellido,
-      evaluaciones: []
-    });
-  }
-  guardarGrupos(grupos);
-  modalAlumno.classList.add('oculto');
-  renderAlumnos();
-});
-
-document.getElementById('btn-cancelar-modal').addEventListener('click', () => {
-  modalAlumno.classList.add('oculto');
-});
-
 function editarAlumno(id) {
   const grupo = grupos.find(g => g.id === grupoActualId);
   const al = grupo?.alumnos.find(a => a.id === id);
@@ -206,7 +269,6 @@ function eliminarAlumno(id) {
   renderAlumnos();
 }
 
-// ---- ASISTENCIA ----
 function cargarAsistenciaPanel() {
   const grupo = grupos.find(g => g.id === grupoActualId);
   if (!grupo) return;
@@ -222,26 +284,11 @@ function cargarAsistenciaPanel() {
   `).join('');
 }
 
-document.getElementById('btn-guardar-asistencia').addEventListener('click', () => {
-  const fecha = fechaAsistencia.value;
-  if (!fecha) return alert('Selecciona una fecha');
-  const checks = asistenciaLista.querySelectorAll('input[type=checkbox]');
-  const presentes = Array.from(checks).filter(c => c.checked).map(c => c.value);
-  if (!asistenciaData[grupoActualId]) asistenciaData[grupoActualId] = {};
-  asistenciaData[grupoActualId][fecha] = presentes;
-  guardarAsistencia(asistenciaData);
-  alert('Asistencia guardada');
-  cargarAsistenciaPanel();
-});
-
-fechaAsistencia.addEventListener('change', cargarAsistenciaPanel);
-
-// ---- EVALUACIONES ----
 function abrirEvaluaciones(alumnoId) {
   const grupo = grupos.find(g => g.id === grupoActualId);
   const alumno = grupo?.alumnos.find(a => a.id === alumnoId);
   if (!alumno) return;
-  alumnoEditandoId = alumnoId; // para agregar evaluación
+  alumnoEditandoId = alumnoId;
   nombreAlumnoEval.textContent = alumno.nombre + ' ' + alumno.apellido;
   renderEvaluaciones(alumno);
   modalEval.classList.remove('oculto');
@@ -258,23 +305,6 @@ function renderEvaluaciones(alumno) {
   promedioActual.textContent = calcularPromedio(alumno.evaluaciones);
 }
 
-document.getElementById('btn-agregar-evaluacion').addEventListener('click', () => {
-  const nombre = inputNombreEval.value.trim();
-  const nota = parseFloat(inputNota.value);
-  if (!nombre || isNaN(nota) || nota < 0 || nota > 5) {
-    return alert('Nombre de evaluación válido y nota entre 0 y 5');
-  }
-  const grupo = grupos.find(g => g.id === grupoActualId);
-  const alumno = grupo?.alumnos.find(a => a.id === alumnoEditandoId);
-  if (!alumno) return;
-  alumno.evaluaciones.push({ nombre, nota });
-  guardarGrupos(grupos);
-  inputNombreEval.value = '';
-  inputNota.value = '';
-  renderEvaluaciones(alumno);
-  renderAlumnos(); // actualizar promedio en lista
-});
-
 function eliminarEvaluacion(alumnoId, index) {
   const grupo = grupos.find(g => g.id === grupoActualId);
   const alumno = grupo?.alumnos.find(a => a.id === alumnoId);
@@ -284,16 +314,3 @@ function eliminarEvaluacion(alumnoId, index) {
   renderEvaluaciones(alumno);
   renderAlumnos();
 }
-
-document.getElementById('btn-cerrar-evaluaciones').addEventListener('click', () => {
-  modalEval.classList.add('oculto');
-});
-
-// Cerrar modales con clic fuera (opcional)
-window.addEventListener('click', (e) => {
-  if (e.target === modalAlumno) modalAlumno.classList.add('oculto');
-  if (e.target === modalEval) modalEval.classList.add('oculto');
-});
-
-// Inicializar
-renderGrupos();
