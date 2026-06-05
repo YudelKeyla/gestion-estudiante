@@ -32,34 +32,35 @@
         </div>
 
         <div class="tabs">
-          <button class="tab activo" data-tab="alumnos">👥 Alumnos</button>
+          <button class="tab activo" data-tab="evaluaciones">📊 Evaluaciones</button>
           <button class="tab" data-tab="asistencia">📅 Asistencia</button>
-          <button class="tab" data-tab="reporte">📊 Reporte</button>
         </div>
 
-        <!-- Panel Alumnos -->
-        <div id="panel-alumnos" class="panel activo">
+        <!-- Panel Evaluaciones (tabla) -->
+        <div id="panel-evaluaciones" class="panel activo">
           <div class="acciones-centradas">
             <button id="btn-agregar-alumno" class="primario">➕ Añadir alumno</button>
+            <button id="btn-agregar-evaluacion" class="primario" style="margin-top:5px;">➕ Nueva evaluación</button>
           </div>
-          <div id="lista-alumnos" class="lista"></div>
+          <div class="tabla-contenedor">
+            <table id="tabla-evaluaciones">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- Panel Asistencia -->
+        <!-- Panel Asistencia (tabla) -->
         <div id="panel-asistencia" class="panel">
-          <div class="selector-fecha">
-            <label for="fecha-asistencia">Fecha clase:</label>
-            <input type="date" id="fecha-asistencia">
-          </div>
-          <div id="asistencia-lista" class="lista"></div>
           <div class="acciones-centradas">
-            <button id="btn-guardar-asistencia" class="primario">💾 Guardar asistencia</button>
+            <button id="btn-registrar-asistencia" class="primario">➕ Registrar asistencia</button>
           </div>
-        </div>
-
-        <!-- Panel Reporte -->
-        <div id="panel-reporte" class="panel">
-          <div id="reporte-contenido"></div>
+          <div class="tabla-contenedor">
+            <table id="tabla-asistencia">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -76,13 +77,14 @@
         </div>
       </div>
 
-      <!-- Modal: Editar grupo -->
+      <!-- Modal: Crear/Editar grupo -->
       <div id="modal-grupo" class="modal oculto">
         <div class="modal-contenido">
-          <h3>Editar grupo</h3>
+          <h3 id="modal-titulo-grupo">Nuevo grupo</h3>
           <input type="text" id="input-editar-nombre" placeholder="Nombre del grupo" required>
           <input type="number" id="input-editar-anio" placeholder="Año" min="1" required>
           <input type="text" id="input-editar-facultad" placeholder="Facultad" required>
+          <input type="text" id="input-editar-asignaturas" placeholder="Asignaturas (separadas por comas)">
           <div class="modal-botones">
             <button id="btn-cancelar-editar-grupo">Cancelar</button>
             <button id="btn-guardar-editar-grupo" class="primario">Guardar</button>
@@ -97,12 +99,43 @@
           <div class="evaluaciones-lista" id="lista-evaluaciones"></div>
           <div class="nueva-evaluacion">
             <input type="text" id="input-nombre-eval" placeholder="Ej: Examen oral 1">
+            <select id="select-asignatura" style="width:100%; padding:10px; margin-bottom:8px;">
+              <option value="">Sin asignatura</option>
+            </select>
             <input type="number" id="input-nota" min="2" max="5" step="1" placeholder="Nota (2-5)">
             <button id="btn-agregar-evaluacion" class="primario pequeño">➕</button>
           </div>
           <p>Promedio actual: <strong id="promedio-actual">-</strong></p>
           <div class="modal-botones">
             <button id="btn-cerrar-evaluaciones">Cerrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Nueva evaluación (global) -->
+      <div id="modal-nueva-evaluacion" class="modal oculto">
+        <div class="modal-contenido">
+          <h3>Nueva evaluación para el grupo</h3>
+          <input type="text" id="input-nombre-nueva-eval" placeholder="Nombre de la evaluación" required>
+          <div class="modal-botones">
+            <button id="btn-cancelar-nueva-eval">Cancelar</button>
+            <button id="btn-guardar-nueva-eval" class="primario">Crear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Registrar asistencia (fecha + checkboxes) -->
+      <div id="modal-asistencia" class="modal oculto">
+        <div class="modal-contenido">
+          <h3>Registrar asistencia</h3>
+          <div class="selector-fecha">
+            <label for="fecha-asistencia">Fecha:</label>
+            <input type="date" id="fecha-asistencia">
+          </div>
+          <div id="asistencia-lista" class="lista"></div>
+          <div class="modal-botones">
+            <button id="btn-cancelar-asistencia">Cancelar</button>
+            <button id="btn-guardar-asistencia" class="primario">Guardar</button>
           </div>
         </div>
       </div>
